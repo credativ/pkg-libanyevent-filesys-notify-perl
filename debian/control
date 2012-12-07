@@ -1,0 +1,16 @@
+Source: libanyevent-filesys-notify-perl
+Section: perl
+Priority: optional
+Maintainer: Alexander Wirt <alexander.wirt@credativ.de>
+Build-Depends: debhelper (>= 8),
+ perl
+Standards-Version: 3.9.3
+Homepage: http://search.cpan.org/dist/AnyEvent-Filesys-Notify/
+
+Package: libanyevent-filesys-notify-perl
+Architecture: all
+Depends: ${misc:Depends}, ${perl:Depends}
+Description: An AnyEvent compatible module to monitor files/directories for changes
+ (no description was found)
+ .
+ This description was automagically extracted from the module by dh-make-perl.
