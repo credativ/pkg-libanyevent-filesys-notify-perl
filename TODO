@@ -1,0 +1,10 @@
+Wishlist of things to add to this module:
+
+o Make Linux::Inotify2 flags an attribute that can be changed by user
+o Monitor individual files
+o Filter/exclued files in a dir
+o Change abs_path stuff
+o What happens if there is a change b/w ->new and loop()
+x Kqueue on BSD
+x Use Linux::Inotify2 on linux
+x Monitor multiple dirs

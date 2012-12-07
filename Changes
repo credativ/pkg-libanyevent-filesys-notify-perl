@@ -1,0 +1,56 @@
+Changes for AnyEvent::Filesys::Notify
+
+0.15 - Wed Dec  5 12:01:07 EST 2012
+    Skips attribute modification tests on Win32.
+
+0.14 - Tue Nov 27 08:58:47 EST 2012
+    Adds missing prereq for FreeBSD
+    Checks of Kqueue from TODO list
+
+0.12 - Wed Nov 21 08:22:55 EST 2012
+    Fixes missing file in MANIFEST and bumps versions
+
+0.11 - Tue Nov 20 11:27:16 EST 2012
+    Adds kqueue support and test on FreeBSD. Thanks to Gasol Wu
+    <gasol.wu@gmail.com> who provided the well done patch.
+
+0.10 - Tue Nov 20 10:57:28 EST 2012
+    Move author/release tests to xt/
+    Skip the symlink tests on Win32
+
+0.09 - Mon Oct 22 11:06:48 EDT 2012
+    Skips attribute modification tests on MS Win platforms
+    Updates README with current year in copyright
+
+0.08 - Tue Oct 16 12:08:22 EDT 2012
+    Adds support for changes in a file or directory's attributes. Thanks to
+    Florian Koch for the bug report (RT#80156) and patch.
+
+0.07 - Sun Jul 22 09:34:00 EDT 2012
+    Fixes missing events for file moves on Linux (RT#78482)
+    - Adds the IN_MOVE flag to Linux::Inotify2 watcher
+    - Adds a timeout to the test scripts
+
+0.06 - Wed Dec 14 17:24:52 EST 2011
+    Implemented a fix for RT#72849 (excessive warnings if there are broken
+    symlinks on ext4)
+
+0.05 - Mon Feb  8 18:47:45 2010
+    Fixed bug in AFN::Event, where is_dir was incorrectly typed.
+
+0.04 - Fri Jan 29 16:13:39 2010
+    Updated documentation to reflect ability to watch multiple 
+    directories. Other minor cleanup.
+
+
+0.03 - Fri Dec 11 08:55:30 2009
+    Added namespace::autoclean and switched to apply_all_roles. This
+    gives us true per-instance application of backends
+    (Inotify/FSEvents/Fallback).
+
+0.02 - Thu Dec 10 11:53:37 2009
+    Initial release on CPAN
+
+0.01 - 
+    Initial import
+
