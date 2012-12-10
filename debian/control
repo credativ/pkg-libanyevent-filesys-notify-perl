@@ -3,13 +3,26 @@ Section: perl
 Priority: optional
 Maintainer: Alexander Wirt <alexander.wirt@credativ.de>
 Build-Depends: debhelper (>= 8),
- perl
+               libanyevent-perl,
+               libdata-dump-perl,
+               libfile-find-rule-perl,
+               liblinux-inotify2-perl,
+               libmodule-build-perl (>= 0.4),
+               libnamespace-autoclean-perl,
+               libtest-exception-perl,
+               libtest-without-module-perl,
+               perl
 Standards-Version: 3.9.3
 Homepage: http://search.cpan.org/dist/AnyEvent-Filesys-Notify/
 
 Package: libanyevent-filesys-notify-perl
 Architecture: all
-Depends: ${misc:Depends}, ${perl:Depends}
+Depends: libanyevent-perl,
+         libfile-find-rule-perl,
+         liblinux-inotify2-perl,
+         libnamespace-autoclean-perl,
+         ${misc:Depends},
+         ${perl:Depends}
 Description: An AnyEvent compatible module to monitor files/directories for changes
  (no description was found)
  .
