@@ -21,6 +21,7 @@ has interval    => ( is => 'ro', isa => 'Num',           default  => 2 );
 has no_external => ( is => 'ro', isa => 'Bool',          default  => 0 );
 has backend     => ( is => 'ro', isa => 'Str',           default  => '' );
 has filter      => ( is => 'rw', isa => 'RegexpRef|CodeRef' );
+has parse_events=> ( is => 'rw', isa => 'Bool',          default => 0 );
 has _fs_monitor => ( is => 'rw', );
 has _old_fs => ( is => 'rw', isa => 'HashRef' );
 has _watcher => ( is => 'rw', );
@@ -37,13 +38,21 @@ sub BUILD {
 sub _process_events {
     my ( $self, @raw_events ) = @_;
 
-    # We are just ingoring the raw events for now... Mac::FSEvents
-    # doesn't provide much information, so rescan ourselves
+    # Some implementations provided enough information to parse the raw events,
+    # other require rescanning the file system (ie, Mac::FSEvents).
+    # The original behaviour was for rescan for all implementations, so we
+    # have added a flag to avoid breaking old code.
 
-    my $new_fs = _scan_fs( $self->dirs );
-    my @events = $self->_apply_filter( _diff_fs( $self->_old_fs, $new_fs ) );
+    my @events;
 
-    $self->_old_fs($new_fs);
+    if( $self->parse_events and $self->can('_parse_events') ){
+        @events = $self->_apply_filter( $self->_parse_events( @raw_events ) );
+    } else {
+        my $new_fs = _scan_fs( $self->dirs );
+        @events = $self->_apply_filter( _diff_fs( $self->_old_fs, $new_fs ) );
+        $self->_old_fs($new_fs);
+    }
+
     $self->cb->(@events) if @events;
 
     return \@events;
@@ -230,6 +239,7 @@ version 0.19
             my (@events) = @_;
             # ... process @events ...
         },
+        parse_events => 1,  # Improves efficiency on certain platforms
     );
 
     # enter an event loop, see AnyEvent documentation
@@ -312,6 +322,16 @@ This is retained for backward compatibility. Using C<backend => 'Fallback'>
 is preferred. Force the use of the L</Fallback> watcher implementation. This is
 not encouraged as the L</Fallback> implement is very inefficient, but it does
 not require either L<Linux::INotify2> nor L<Mac::FSEvents>. Optional.
+
+=item parse_events
+
+    parse_events => 1,
+
+In backends that support it (currently INotify2), parse the events instead of
+rescanning file system for changed C<stat()> information. Note, that this might
+cause slight changes in behavior. In particular, the Inotify2 backend will
+generate an additional 'modified' event when a file changes (once when opened
+for write, and once when modified).
 
 =back
 
