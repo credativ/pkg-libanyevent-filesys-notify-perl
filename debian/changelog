@@ -1,3 +1,12 @@
+libanyevent-filesys-notify-perl (0.19-1) unstable; urgency=medium
+
+  * Imported Upstream version 0.19: most recent version with dependencies that
+    are satisfiable by wheezy
+  * backport code part of upstream branch rv/efficient-events. Ignore new tests,
+    they introduce new dependencies
+
+ -- Carsten Wolff <carsten.wolff@credativ.de>  Mon, 14 Jul 2014 10:27:49 +0200
+
 libanyevent-filesys-notify-perl (0.15-1) unstable; urgency=low
 
   * Initial Release.
