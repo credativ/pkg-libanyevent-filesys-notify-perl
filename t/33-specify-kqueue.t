@@ -1,4 +1,4 @@
-use Test::More tests => 9;
+use Test::More;
 
 use strict;
 use warnings;
@@ -11,6 +11,12 @@ use TestSupport qw(create_test_files delete_test_files move_test_files $dir);
 use AnyEvent::Filesys::Notify;
 use AnyEvent::Impl::Perl;
 
+unless ($^O eq 'darwin' and eval { require IO::KQueue; 1; }) {
+    plan skip_all => 'Test only on Mac with IO::KQueue'
+} else {
+    plan tests => 9;
+}
+
 create_test_files(qw(one/1));
 create_test_files(qw(two/1));
 
@@ -21,20 +27,19 @@ my $n = AnyEvent::Filesys::Notify->new(
     dirs => [
         File::Spec->catfile( $dir, 'one' ), File::Spec->catfile( $dir, 'two' )
     ],
-    interval => 0.5,
-    filter   => sub { shift !~ qr/ignoreme/ },
-    cb       => sub {
+    filter => sub { shift !~ qr/ignoreme/ },
+    cb     => sub {
         is_deeply(
             [ map { $_->type } @_ ], \@expected,
             '... got events: ' . join ',', @expected
         );
         $cv->send;
     },
-    no_external => 1,
+    backend => 'KQueue',
 );
 
 isa_ok( $n, 'AnyEvent::Filesys::Notify' );
-ok( $n->does('AnyEvent::Filesys::Notify::Role::Fallback'),
+ok( $n->does('AnyEvent::Filesys::Notify::Role::KQueue'),
     '... with the fallback role' );
 
 my $w =
