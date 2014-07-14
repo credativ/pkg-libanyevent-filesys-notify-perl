@@ -1,0 +1,141 @@
+From: Carsten Wolff <carsten@wolffcarsten.de>
+Date: Mon, 14 Jul 2014 10:54:52 +0200
+Subject: backport upstream branch rv/efficient-events
+
+---
+ lib/AnyEvent/Filesys/Notify.pm               | 30 ++++++++++++++---
+ lib/AnyEvent/Filesys/Notify/Role/Inotify2.pm | 50 ++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 5 deletions(-)
+
+diff --git a/lib/AnyEvent/Filesys/Notify.pm b/lib/AnyEvent/Filesys/Notify.pm
+index a9faf52..6ba3157 100644
+--- a/lib/AnyEvent/Filesys/Notify.pm
++++ b/lib/AnyEvent/Filesys/Notify.pm
+@@ -21,6 +21,7 @@ has interval    => ( is => 'ro', isa => 'Num',           default  => 2 );
+ has no_external => ( is => 'ro', isa => 'Bool',          default  => 0 );
+ has backend     => ( is => 'ro', isa => 'Str',           default  => '' );
+ has filter      => ( is => 'rw', isa => 'RegexpRef|CodeRef' );
++has parse_events=> ( is => 'rw', isa => 'Bool',          default => 0 );
+ has _fs_monitor => ( is => 'rw', );
+ has _old_fs => ( is => 'rw', isa => 'HashRef' );
+ has _watcher => ( is => 'rw', );
+@@ -37,13 +38,21 @@ sub BUILD {
+ sub _process_events {
+     my ( $self, @raw_events ) = @_;
+ 
+-    # We are just ingoring the raw events for now... Mac::FSEvents
+-    # doesn't provide much information, so rescan ourselves
++    # Some implementations provided enough information to parse the raw events,
++    # other require rescanning the file system (ie, Mac::FSEvents).
++    # The original behaviour was for rescan for all implementations, so we
++    # have added a flag to avoid breaking old code.
+ 
+-    my $new_fs = _scan_fs( $self->dirs );
+-    my @events = $self->_apply_filter( _diff_fs( $self->_old_fs, $new_fs ) );
++    my @events;
++
++    if( $self->parse_events and $self->can('_parse_events') ){
++        @events = $self->_apply_filter( $self->_parse_events( @raw_events ) );
++    } else {
++        my $new_fs = _scan_fs( $self->dirs );
++        @events = $self->_apply_filter( _diff_fs( $self->_old_fs, $new_fs ) );
++        $self->_old_fs($new_fs);
++    }
+ 
+-    $self->_old_fs($new_fs);
+     $self->cb->(@events) if @events;
+ 
+     return \@events;
+@@ -230,6 +239,7 @@ version 0.19
+             my (@events) = @_;
+             # ... process @events ...
+         },
++        parse_events => 1,  # Improves efficiency on certain platforms
+     );
+ 
+     # enter an event loop, see AnyEvent documentation
+@@ -313,6 +323,16 @@ is preferred. Force the use of the L</Fallback> watcher implementation. This is
+ not encouraged as the L</Fallback> implement is very inefficient, but it does
+ not require either L<Linux::INotify2> nor L<Mac::FSEvents>. Optional.
+ 
++=item parse_events
++
++    parse_events => 1,
++
++In backends that support it (currently INotify2), parse the events instead of
++rescanning file system for changed C<stat()> information. Note, that this might
++cause slight changes in behavior. In particular, the Inotify2 backend will
++generate an additional 'modified' event when a file changes (once when opened
++for write, and once when modified).
++
+ =back
+ 
+ =head1 WATCHER IMPLEMENTATIONS
+diff --git a/lib/AnyEvent/Filesys/Notify/Role/Inotify2.pm b/lib/AnyEvent/Filesys/Notify/Role/Inotify2.pm
+index 9db1cff..ff2b51a 100644
+--- a/lib/AnyEvent/Filesys/Notify/Role/Inotify2.pm
++++ b/lib/AnyEvent/Filesys/Notify/Role/Inotify2.pm
+@@ -7,6 +7,7 @@ use namespace::autoclean;
+ use AnyEvent;
+ use Linux::Inotify2;
+ use Carp;
++use File::Find::Rule;
+ 
+ # use Scalar::Util qw(weaken);  # Attempt to address RT#57104, but alas...
+ 
+@@ -44,6 +45,55 @@ sub _init {
+     return 1;
+ }
+ 
++# Parse the events returned by Inotify2 instead of rescanning the files.
++# There are small changes in behavior compared to the parent code:
++#
++# 1. `touch test` causes an additional "modified" event after the "created"
++# 2. `mv test2 test` if test exists before, event for test would be "modified"
++#     in parent code, but is "created" here
++#
++# Because of these differences, we default to the original behavior unless the
++# parse_events flag is true.
++sub _parse_events {
++    my ( $self, @raw_events ) = @_;
++    my @events = ();
++
++    for my $e (@raw_events) {
++        my $type = undef;
++
++        $type = 'modified' if ( $e->mask & ( IN_MODIFY | IN_ATTRIB ) );
++        $type = 'deleted'  if ( $e->mask &
++            ( IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM | IN_MOVE_SELF ) );
++        $type = 'created'  if ( $e->mask & ( IN_CREATE | IN_MOVED_TO ) );
++
++        push(
++            @events,
++            AnyEvent::Filesys::Notify::Event->new(
++                path   => $e->fullname,
++                type   => $type,
++                is_dir => !! $e->IN_ISDIR,
++            ) ) if $type;
++
++        # New directories are not automatically watched, we will add it to the
++        # list of watched directories in `around '_process_events'` but in
++        # the meantime, we will miss any newly created files in the subdir
++        if ( $e->IN_ISDIR and $type eq 'created' ) {
++            for my $file ( File::Find::Rule->in( $e->fullname ) ) {
++                next if $file eq $e->fullname;
++                push @events,
++                  AnyEvent::Filesys::Notify::Event->new(
++                    path   => $file,
++                    type   => 'created',
++                    is_dir => -d $file,
++                  );
++            }
++
++        }
++    }
++
++    return @events;
++}
++
+ # Need to add newly created sub-dirs to the watch list.
+ # This is done after filtering. So entire dirs can be ignored efficiently;
+ around '_process_events' => sub {
